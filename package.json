@@ -1,0 +1,20 @@
+{
+    "name": "modulation-lab-ts",
+    "version": "1.0.0",
+    "description": "Модуляция и синтез сигналов (порт PyQt5 → Node.js CLI)",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "npm run build && node dist/index.js",
+        "analysis": "node dist/index.js"
+    },
+    "dependencies": {
+        "canvas": "^3.0.0",
+        "chart.js": "^4.4.1",
+        "chartjs-node-canvas": "^5.0.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "typescript": "^5.3.3"
+    }
+}

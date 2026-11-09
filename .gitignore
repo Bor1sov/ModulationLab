@@ -1,0 +1,48 @@
+# ---------- Node ----------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json.bak
+
+# ---------- TypeScript ----------
+dist/
+*.tsbuildinfo
+*.js.map
+
+# ---------- Вывод программы ----------
+output/
+*.png
+!docs/**/*.png
+
+# ---------- Архивы проекта ----------
+*.zip
+*.7z
+*.tar.gz
+*.rar
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- IDE / редакторы ----------
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ---------- Окружение ----------
+.env
+.env.*
+!.env.example
+
+# ---------- Прочее ----------
+*.log
+.cache/
+coverage/
+.nyc_output/
