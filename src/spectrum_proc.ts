@@ -62,15 +62,33 @@ export function getFFT(sig: number[], fs: number): FFTResult {
 export function cutBand(
   spec: FFTResult,
   fLow: number,
-  fHigh: number
+  fHigh: number,
+  thresholdRatio = 0.01
 ): { real: number[]; imag: number[] } {
   const real = [...spec.real];
   const imag = [...spec.imag];
+
+  let maxMag = 0;
   for (let i = 0; i < spec.freqs.length; i++) {
-    const f = Math.abs(spec.freqs[i]);
-    if (!(f >= fLow && f <= fHigh)) {
+    const absF = Math.abs(spec.freqs[i]);
+    if (absF >= fLow && absF <= fHigh) {
+      const mag = Math.hypot(spec.real[i], spec.imag[i]);
+      if (mag > maxMag) maxMag = mag;
+    }
+  }
+
+  for (let i = 0; i < spec.freqs.length; i++) {
+    const absF = Math.abs(spec.freqs[i]);
+    const mag = Math.hypot(spec.real[i], spec.imag[i]);
+
+    if (absF < fLow || absF > fHigh || mag < maxMag * thresholdRatio) {
       real[i] = 0;
       imag[i] = 0;
+    } else {
+      const t = (absF - fLow) / (fHigh - fLow);
+      const w = 0.5 * (1 - Math.cos(2 * Math.PI * t));
+      real[i] *= w;
+      imag[i] *= w;
     }
   }
   return { real, imag };
@@ -79,7 +97,6 @@ export function cutBand(
 export function inverseFFT(real: number[], imag: number[]): number[] {
   return idftReal(real, imag);
 }
-
 
 function biquadLowpass(fc: number, fs: number, q: number) {
   const w0 = (2 * Math.PI * fc) / fs;
@@ -99,20 +116,7 @@ function biquadLowpass(fc: number, fs: number, q: number) {
   };
 }
 
-function convolve(x: number[], y: number[]): number[] {
-  const r = new Array(x.length + y.length - 1).fill(0);
-  for (let i = 0; i < x.length; i++)
-    for (let j = 0; j < y.length; j++) r[i + j] += x[i] * y[j];
-  return r;
-}
-
-function butterLowpass4(fc: number, fs: number): { b: number[]; a: number[] } {
-  const s1 = biquadLowpass(fc, fs, 0.54119610);
-  const s2 = biquadLowpass(fc, fs, 1.30656296);
-  return { b: convolve(s1.b, s2.b), a: convolve(s1.a, s2.a) };
-}
-
-function iirFilter(input: number[], b: number[], a: number[]): number[] {
+function applyBiquad(input: number[], b: number[], a: number[]): number[] {
   const out = new Array(input.length);
   let z1 = 0;
   let z2 = 0;
@@ -127,19 +131,27 @@ function iirFilter(input: number[], b: number[], a: number[]): number[] {
 }
 
 export function applyLowpass(signal: number[], fs: number, cutoff = 10): number[] {
-  const { b, a } = butterLowpass4(cutoff, fs);
+  const q1 = 0.54119610;
+  const q2 = 1.30656296;
+  const s1 = biquadLowpass(cutoff, fs, q1);
+  const s2 = biquadLowpass(cutoff, fs, q2);
+
   const n = signal.length;
-  const padLen = 3 * Math.max(a.length, b.length);
+  const padLen = 100;
 
   const padded = new Array(n + 2 * padLen);
   for (let i = 0; i < padLen; i++) padded[i] = 2 * signal[0] - signal[padLen - i];
   for (let i = 0; i < n; i++) padded[padLen + i] = signal[i];
-  for (let i = 0; i < padLen; i++)
+  for (let i = 0; i < padLen; i++) {
     padded[padLen + n + i] = 2 * signal[n - 1] - signal[n - 2 - i];
+  }
 
-  let y = iirFilter(padded, b, a);
+  let y = applyBiquad(padded, s1.b, s1.a);
+  y = applyBiquad(y, s2.b, s2.a);
+
   y.reverse();
-  y = iirFilter(y, b, a);
+  y = applyBiquad(y, s1.b, s1.a);
+  y = applyBiquad(y, s2.b, s2.a);
   y.reverse();
 
   return y.slice(padLen, padLen + n);

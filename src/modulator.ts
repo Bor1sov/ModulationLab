@@ -7,7 +7,7 @@ export class SignalModulator {
     this.time = time;
   }
 
-  am(fCarrier: number, mSignal: number[], depth = 0.6): number[] {
+  am(fCarrier: number, mSignal: number[], depth = 0.9): number[] {
     return this.time.map(
       (t, i) => (1 + depth * mSignal[i]) * Math.sin(2 * Math.PI * fCarrier * t)
     );

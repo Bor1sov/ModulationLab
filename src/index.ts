@@ -1,4 +1,4 @@
-import { runAnalysis } from './analysis';
+import { runAnalysis, CUT_LOW, CUT_HIGH } from './analysis';
 import { FigureMaker } from './painter';
 import type { Panel } from './painter';
 
@@ -6,7 +6,7 @@ async function main(): Promise<void> {
   const fsArg: string | undefined = process.argv[2];
   const durArg: string | undefined = process.argv[3];
 
-  const fsVal: number = fsArg ? parseInt(fsArg, 10) : 1000;
+  const fsVal: number = fsArg ? parseInt(fsArg, 10) : 2000;
   const dur: number = durArg ? parseFloat(durArg.replace(',', '.')) : 1.0;
 
   if (!Number.isFinite(fsVal) || fsVal <= 0) {
@@ -19,34 +19,32 @@ async function main(): Promise<void> {
   console.log(`Запуск: fs=${fsVal}, duration=${dur}`);
   const r = runAnalysis(fsVal, dur);
 
-  // ---------- 1) Отдельные PNG (аналог FigureMaker.save_* в Python) ----------
   await FigureMaker.saveSingle(r.tShort, r.amShort, 'АМ сигнал', 'am_sig.png');
   await FigureMaker.saveSingle(r.tShort, r.fmShort, 'ЧМ сигнал', 'fm_sig.png');
   await FigureMaker.saveSingle(r.tShort, r.pmShort, 'ФМ сигнал', 'pm_sig.png');
 
-  await FigureMaker.saveSpec(r.fShow, r.specAm, 'Спектр АМ', 'am_spec.png');
-  await FigureMaker.saveSpec(r.fShow, r.specFm, 'Спектр ЧМ', 'fm_spec.png');
-  await FigureMaker.saveSpec(r.fShow, r.specPm, 'Спектр ФМ', 'pm_spec.png');
+  await FigureMaker.saveSpec(r.fShow, r.specAm, 'Спектр АМ', 'am_spec.png', [0, 200]);
+  await FigureMaker.saveSpec(r.fShow, r.specFm, 'Спектр ЧМ', 'fm_spec.png', [0, 200]);
+  await FigureMaker.saveSpec(r.fShow, r.specPm, 'Спектр ФМ', 'pm_spec.png', [0, 200]);
 
   await FigureMaker.saveSingle(
     r.tShort, r.synthShort,
-    'Синтезированный АМ (полоса 15-25 Гц)', 'am_synth.png'
+    `Синтезированный АМ (окно Ханна ${CUT_LOW}-${CUT_HIGH} Гц)`, 'am_synth.png'
   );
 
   await FigureMaker.saveCompare(
-    r.tShort, r.filteredShort, r.mSigShort,
-    'Демодуляция vs модулирующий меандр', 'am_filtered_compare.png'
+    r.tShort, r.squareRecovered, r.mSigShort,
+    'Восстановленный меандр vs Исходный', 'am_filtered_compare.png'
   );
 
-  // ---------- 2) Сводная фигура 4×3 (аналог окна PyQt5) ----------
   const panels: Panel[] = [
     {
-      title: 'Несущая (20 Гц)',
+      title: 'Несущая (40 Гц)',
       x: r.tShort,
       datasets: [{ y: r.carrierShort, color: 'black' }],
     },
     {
-      title: 'Меандр (2 Гц) — модулирующий',
+      title: 'Меандр (4 Гц) — модулирующий',
       x: r.tShort,
       datasets: [{ y: r.mSigShort, color: 'orange' }],
     },
@@ -59,13 +57,13 @@ async function main(): Promise<void> {
       title: 'Спектр АМ',
       x: r.fShow,
       datasets: [{ y: r.specAm, color: 'blue' }],
-      xlim: [0, 100],
+      xlim: [0, 200],
     },
     {
-      title: 'Обрезанный спектр АМ (15-25 Гц)',
+      title: `Обрезанный спектр АМ (${CUT_LOW}-${CUT_HIGH} Гц)`,
       x: r.fShow,
       datasets: [{ y: r.cutSpecMag, color: 'red' }],
-      xlim: [0, 100],
+      xlim: [0, 200],
     },
     {
       title: 'Синтезированный сигнал (ОБПФ)',
@@ -73,17 +71,17 @@ async function main(): Promise<void> {
       datasets: [{ y: r.synthShort, color: 'magenta' }],
     },
     {
-      title: 'Огибающая после демодуляции (|x| + ФНЧ)',
+      title: 'Огибающая (норм.)',
       x: r.tShort,
-      datasets: [{ y: r.filteredShort, color: 'purple' }],
+      datasets: [{ y: r.filteredShort, color: 'teal' }],
     },
     {
-      title: 'Демодуляция vs модулирующий',
+      title: 'Восстановленный меандр',
       x: r.tShort,
       showLegend: true,
       datasets: [
-        { y: r.filteredShort, color: 'red', label: 'Огибающая после демодуляции' },
-        { y: r.mSigShort, color: 'black', label: 'Исходный меандр', dash: [5, 5] },
+        { y: r.squareRecovered, color: 'red', label: 'Восстановленный' },
+        { y: r.mSigShort, color: 'black', label: 'Исходный', dash: [5, 5] },
       ],
     },
     {
@@ -95,7 +93,7 @@ async function main(): Promise<void> {
       title: 'Спектр ЧМ',
       x: r.fShow,
       datasets: [{ y: r.specFm, color: 'green' }],
-      xlim: [0, 100],
+      xlim: [0, 200],
     },
     {
       title: 'ФМ сигнал',
@@ -106,7 +104,7 @@ async function main(): Promise<void> {
       title: 'Спектр ФМ',
       x: r.fShow,
       datasets: [{ y: r.specPm, color: 'red' }],
-      xlim: [0, 100],
+      xlim: [0, 200],
     },
   ];
 
